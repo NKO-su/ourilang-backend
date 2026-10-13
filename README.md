@@ -1,4 +1,4 @@
-# Langly Backend
+# Ourilang Backend
 
 ## Overview
 Đây là backend của một ứng dụng học ngoại ngữ thông qua các nội dung thực tế như tin tức hằng ngày.
