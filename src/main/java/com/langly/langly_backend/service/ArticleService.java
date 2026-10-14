@@ -1,16 +1,22 @@
 package com.langly.langly_backend.service;
 
+import com.langly.langly_backend.dto.ArticleDetailResponse;
 import com.langly.langly_backend.dto.ArticlePageResponse;
-import com.langly.langly_backend.model.Article;
+import com.langly.langly_backend.dto.ArticleSummary;
+import com.langly.langly_backend.dto.ArticleSummaryResponse;
 import com.langly.langly_backend.repository.ArticleRepository;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 @Service
 public class ArticleService {
+
+    private static final int DEFAULT_SIZE = 20;
+    private static final int MAX_SIZE = 50;
 
     private final ArticleRepository articleRepository;
 
@@ -18,17 +24,31 @@ public class ArticleService {
         this.articleRepository = articleRepository;
     }
 
-    public ArticlePageResponse getArticles(Long cursor, int size) {
-        Long effectiveCursor = (cursor != null) ? cursor : Long.MAX_VALUE;  // nếu không có cursor thì lấy Id lớn nhất, tức bài báo mới nhất
-        Pageable limit = PageRequest.of(0, size);
+    public ArticlePageResponse getArticles(Long cursor, Integer size) {
+        int pageSize = (size == null || size < 1) ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+        long effectiveCursor = (cursor == null) ? Long.MAX_VALUE : cursor;
 
-        List<Article> articles = articleRepository
-                .findByIdLessThanOrderByIdDesc(effectiveCursor, limit);
+        List<ArticleSummary> rows = articleRepository.findByIdLessThanOrderByIdDesc(
+                effectiveCursor, PageRequest.of(0, pageSize + 1));
 
-        Long nextCursor = articles.isEmpty() ? null : articles.get(articles.size() - 1).getId();
+        boolean hasMore = rows.size() > pageSize;
+        List<ArticleSummary> pageRows = hasMore ? rows.subList(0, pageSize) : rows;
 
-        boolean hasMore = articles.size() == size;
+        List<ArticleSummaryResponse> articles = pageRows.stream()
+                .map(ArticleSummaryResponse::from)
+                .toList();
+
+        Long nextCursor = (hasMore && !articles.isEmpty())
+                ? articles.get(articles.size() - 1).id()
+                : null;
 
         return new ArticlePageResponse(articles, nextCursor, hasMore);
+    }
+
+    public ArticleDetailResponse getArticle(Long id) {
+        return articleRepository.findById(id)
+                .map(ArticleDetailResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Article not found"));
     }
 }

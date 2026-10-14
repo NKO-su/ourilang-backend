@@ -12,9 +12,10 @@ Backend chịu trách nhiệm cung cấp API và xử lý logic cho mobile app.
 - Liên kết tài khoản
 - Đăng xuất
 - Bài báo
-- Lưu bài báo
-- Lấy bài báo từ RSS và tự động lưu
+- Lấy bài báo từ The Guardian và tự động lưu tạm
+- Tự động xóa bài báo quá hạn
 - Lấy danh sách bài báo
+- Xem chi tiết bài báo
 
 ## Tech Stack
 - Java
@@ -26,7 +27,7 @@ Backend chịu trách nhiệm cung cấp API và xử lý logic cho mobile app.
 - BCrypt / PasswordEncoder
 - Spring Mail
 - Spring Security OAuth2 Client
-- Rome RSS
+- The Guardian Open Platform API
 
 ## Architecture
 Backend được tổ chức thành các tầng, mỗi tầng thực hiện một chức năng riêng. 
@@ -40,28 +41,27 @@ com.langly.langly_backend
 │   ├── AuthProvider.java
 │   ├── PendingRegistration.java
 │   ├── RefreshToken.java
-│   ├── Article.java
-│   └── SavedArticle.java       
+│   └── Article.java
 ├── repository/
 │   ├── UserRepository.java
 │   ├── PendingRegistrationRepository.java
 │   ├── RefreshTokenRepository.java
-│   ├── ArticleRepository.java  
-│   └── SavedArticleRepository.java 
+│   └── ArticleRepository.java
 ├── util/
-│   ├── TokenGenerator.java      
-│   └── JwtUtil.java               
+│   ├── TokenGenerator.java
+│   └── JwtUtil.java
+├── client/
+│   └── GuardianClient.java
 ├── service/
 │   ├── EmailService.java
-│   ├── AuthService.java          
-│   ├── SavedArticleService.java      
-│   ├── RssFeedService.java           
-│   └── ArticleService.java          
+│   ├── AuthService.java
+│   ├── GuardianFetchService.java
+│   └── ArticleService.java
 ├── scheduler/
-│   └── RssFetchScheduler.java
+│   ├── GuardianFetchScheduler.java
+│   └── ArticleCleanupScheduler.java
 ├── controller/
 │   ├── AuthController.java
-│   ├── SavedArticleController.java
 │   └── ArticleController.java
 ├── config/
 │   ├── SecurityConfig.java
@@ -69,11 +69,14 @@ com.langly.langly_backend
 │   ├── JwtAuthenticationFilter.java
 │   └── OAuth2SuccessHandler.java
 ├── dto/
-│   ├── RegisterRequest.java  
-│   ├── LoginRequest.java  
+│   ├── RegisterRequest.java
+│   ├── LoginRequest.java
 │   ├── RefreshTokenRequest.java
 │   ├── AuthResponse.java
-│   ├── ToggleSaveRequest.java / SavedStatusResponse.java
+│   ├── GuardianSearchResponse.java
+│   ├── ArticleSummary.java
+│   ├── ArticleSummaryResponse.java
+│   ├── ArticleDetailResponse.java
 │   └── ArticlePageResponse.java
 └── exception/
     └── EmailAlreadyExistsException.java
@@ -105,21 +108,23 @@ com.langly.langly_backend
 ### Đăng xuất
 - Xóa Refresh Token
 
-## Article & RSS System
+## Article & Guardian System
 
-### RSS
-Backend lấy bài báo từ BBC RSS thông qua `RssFetchScheduler`.
-Sau khi lấy được bài báo, backend kiểm tra xem bài báo đã tồn tại trong cơ sở dữ liệu hay chưa:
-- Nếu chưa tồn tại, bài báo được lưu vào database.
+### Lấy bài báo
+Backend lấy bài báo từ The Guardian Open Platform API thông qua `GuardianFetchScheduler`.
+Sau khi lấy được danh sách bài, backend chỉ giữ các bài có loại `article`, rồi kiểm tra xem bài đã tồn tại trong cơ sở dữ liệu hay chưa:
+- Nếu chưa tồn tại, bài báo được lưu vào database cùng thời điểm lấy về (`fetchedAt`).
 - Nếu đã tồn tại, bài báo sẽ được bỏ qua.
+  Nội dung bài (`body`, dạng HTML) được lưu nguyên văn, backend không chỉnh sửa.
+
+### Xóa bài báo quá hạn
+Theo điều khoản của The Guardian, nội dung chỉ được lưu tạm trong thời gian giới hạn.
+`ArticleCleanupScheduler` chạy định kỳ và xóa các bài đã được lấy về quá số giờ cho phép (tính từ `fetchedAt`).
 
 ### Article
-Mobile gọi API của backend để lấy danh sách bài báo từ database. 
-Backend trả về các bài báo để mobile hiển thị cho người dùng.
-
-### Save Article
-Khi user chọn lưu một bài báo, backend lấy `articleId` của bài báo và `userId` của user 
-hiện tại, sau đó lưu mối quan hệ giữa hai ID này vào database.
+Mobile gọi API của backend để lấy dữ liệu từ database:
+- `GET /api/articles`: danh sách bài báo (không kèm nội dung `body`), phân trang theo cursor.
+- `GET /api/articles/{id}`: chi tiết một bài báo, có kèm `body`. Trả về 404 nếu bài không còn tồn tại.
 
 ## Configuration
 Backend cần cấu hình các thành phần sau để có thể hoạt động:
@@ -127,4 +132,5 @@ Backend cần cấu hình các thành phần sau để có thể hoạt động:
 - Cấu hình mail để gửi email xác nhận tài khoản
 - Cấu hình JWT secret key
 - Cấu hình Google OAuth2
-- Cấu hình thời gian tự động lấy bài báo từ RSS
+- Cấu hình The Guardian API: API key (biến môi trường `GUARDIAN_API_KEY`), số bài mỗi lần lấy
+- Cấu hình thời gian tự động lấy bài báo từ Guardian, thời gian chạy dọn bài và số giờ tối đa được giữ một bài
