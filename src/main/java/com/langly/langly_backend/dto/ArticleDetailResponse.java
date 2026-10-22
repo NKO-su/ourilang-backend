@@ -11,6 +11,7 @@ public record ArticleDetailResponse(
         String thumbnail,
         Instant publishedAt,
         String webUrl,
+        String byline,
         String body) {
 
     public static ArticleDetailResponse from(Article a) {
@@ -21,6 +22,7 @@ public record ArticleDetailResponse(
                 a.getThumbnail(),
                 a.getPublishedAt(),
                 a.getWebUrl(),
+                a.getByline(),
                 a.getBody());
     }
 }

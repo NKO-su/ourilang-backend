@@ -20,5 +20,5 @@ public record GuardianSearchResponse(Response response) {
             Fields fields) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Fields(String trailText, String body, String thumbnail) {}
+    public record Fields(String trailText, String body, String thumbnail, String byline) {}
 }

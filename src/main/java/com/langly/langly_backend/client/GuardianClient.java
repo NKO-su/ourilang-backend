@@ -24,12 +24,13 @@ public class GuardianClient {
         this.apiKey = apiKey;
         this.pageSize = pageSize;
     }
+
     public List<GuardianSearchResponse.Result> fetchLatest() {
         URI uri = UriComponentsBuilder.fromUriString(baseUrl)
                 .path("/search")
                 .queryParam("order-by", "newest")
                 .queryParam("page-size", pageSize)
-                .queryParam("show-fields", "trailText,body,thumbnail")
+                .queryParam("show-fields", "trailText,body,thumbnail,byline")
                 .queryParam("api-key", apiKey)
                 .build()
                 .toUri();

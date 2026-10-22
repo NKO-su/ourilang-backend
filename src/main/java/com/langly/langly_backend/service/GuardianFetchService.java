@@ -68,6 +68,7 @@ public class GuardianFetchService {
             article.setTrailText(f.trailText());
             article.setBody(body);
             article.setThumbnail(f.thumbnail());
+            article.setByline(f.byline());
 
             articleRepository.save(article);
             saved++;

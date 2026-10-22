@@ -39,6 +39,9 @@ public class Article {
     @Column(length = 1000)
     private String thumbnail;
 
+    @Column(length = 500)
+    private String byline;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant fetchedAt;
@@ -66,6 +69,9 @@ public class Article {
 
     public String getThumbnail() { return thumbnail; }
     public void setThumbnail(String thumbnail) { this.thumbnail = thumbnail; }
+
+    public String getByline() { return byline; }
+    public void setByline(String byline) { this.byline = byline; }
 
     public Instant getFetchedAt() { return fetchedAt; }
     public void setFetchedAt(Instant fetchedAt) { this.fetchedAt = fetchedAt; }
