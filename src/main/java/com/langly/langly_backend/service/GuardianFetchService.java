@@ -19,12 +19,16 @@ public class GuardianFetchService {
 
     private final GuardianClient guardianClient;
     private final ArticleRepository articleRepository;
+    private final ArticleBodyFilter articleBodyFilter;
 
     public GuardianFetchService(GuardianClient guardianClient,
-                                ArticleRepository articleRepository) {
+                                ArticleRepository articleRepository,
+                                ArticleBodyFilter articleBodyFilter) {
         this.guardianClient = guardianClient;
         this.articleRepository = articleRepository;
+        this.articleBodyFilter = articleBodyFilter;
     }
+
     public int fetchAndSave() {
         List<GuardianSearchResponse.Result> results;
         try {
@@ -35,11 +39,21 @@ public class GuardianFetchService {
         }
 
         int saved = 0;
+        int rejected = 0;
         for (GuardianSearchResponse.Result r : results) {
             if (!"article".equals(r.type())) {
                 continue;
             }
             if (r.id() == null || r.webPublicationDate() == null) {
+                continue;
+            }
+
+            GuardianSearchResponse.Fields f = r.fields();
+            String body = (f != null) ? f.body() : null;
+
+            // Kiểm tra chuỗi (rẻ) đặt trước, hỏi DB (đắt hơn) đặt sau
+            if (!articleBodyFilter.isDisplayable(body)) {
+                rejected++;
                 continue;
             }
             if (articleRepository.existsByGuardianId(r.id())) {
@@ -51,19 +65,16 @@ public class GuardianFetchService {
             article.setTitle(r.webTitle());
             article.setWebUrl(r.webUrl());
             article.setPublishedAt(Instant.parse(r.webPublicationDate()));
-
-            GuardianSearchResponse.Fields f = r.fields();
-            if (f != null) {
-                article.setTrailText(f.trailText());
-                article.setBody(f.body());
-                article.setThumbnail(f.thumbnail());
-            }
+            article.setTrailText(f.trailText());
+            article.setBody(body);
+            article.setThumbnail(f.thumbnail());
 
             articleRepository.save(article);
             saved++;
         }
 
-        log.info("Guardian fetch done: {} new articles saved", saved);
+        log.info("Guardian fetch done: {} new articles saved, {} rejected (body not displayable)",
+                saved, rejected);
         return saved;
     }
 }
