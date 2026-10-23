@@ -1,12 +1,17 @@
 package com.langly.langly_backend.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EmailService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     private final JavaMailSender mailSender;
 
@@ -17,6 +22,7 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
+    @Async
     public void sendVerificationEmail(String toEmail, String token) {
         String verificationLink = "http://localhost:8080/api/auth/verify?token=" + token;
 
@@ -28,6 +34,10 @@ public class EmailService {
                 + verificationLink
                 + "\n\nNếu bạn không thực hiện đăng ký này, vui lòng bỏ qua email.");
 
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+        } catch (Exception e) {
+            log.error("Gửi email xác nhận tới {} thất bại", toEmail, e);
+        }
     }
 }
